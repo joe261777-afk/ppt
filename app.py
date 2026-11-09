@@ -76,7 +76,7 @@ if source == 'Saved Zoho project (automatic lookup)':
             st.markdown('#### Request fresh Zoho exports')
             st.caption('This sends a job to the Windows helper. Your Windows computer must be running and signed into Zoho. No Zoho password is sent to Streamlit or GitHub.')
             project_request = st.text_input('Exact Zoho project name', value=search.strip(), key='request_project')
-            survey_url = st.text_input('Zoho survey dashboard URL (recommended for accurate matching)', key='request_url', placeholder='https://survey.zoho.com/survey/newui/#/...')
+            survey_url = ''
             # Require site authentication; project data is private and sync requests cause remote work.
             sync_password = st.secrets.get('SYNC_BUTTON_PASSWORD', '')
             typed_password = st.text_input('Sync access code', type='password', key='request_password') if sync_password else ''
