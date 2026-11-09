@@ -126,7 +126,9 @@ def open_zoho_safely(page, target_url):
     host = urlparse(target_url).netloc
     root = f'https://{host}/'
     print('Opening Zoho homepage:', root)
-    page.goto(root, wait_until='domcontentloaded', timeout=60000)
+    page.goto(root, wait_until='commit', timeout=90000)
+    page.locator('body').wait_for(state='visible', timeout=30000)
+    page.wait_for_timeout(3000)
     page.wait_for_timeout(1200)
     if zoho_route_error(page):
         print('Zoho returned URL_RULE_NOT_CONFIGURED on its homepage.')
