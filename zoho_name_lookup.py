@@ -33,28 +33,63 @@ def survey_id(url):
     return hit.group(1) if hit else None
 
 
+
 def open_department(page, department='Impact for L&D'):
-    """Open the department shown in the user's Zoho portal screenshots."""
-    page.goto('https://survey.zoho.com/survey/newui#/home', wait_until='domcontentloaded', timeout=60000)
-    page.wait_for_timeout(1200)
+    """Open Zoho department without waiting for every resource."""
+    target = 'https://survey.zoho.com/survey/newui#/home'
+    print('Opening Zoho department:', department, flush=True)
+
+    try:
+        page.goto(target, wait_until='commit', timeout=90000)
+    except Exception as exc:
+        if 'survey.zoho.com/survey/newui' not in page.url:
+            raise RuntimeError(
+                f'Zoho navigation failed: {str(exc)[:240]}'
+            ) from exc
+
+    page.locator('body').wait_for(
+        state='visible', timeout=30000
+    )
+
     if '/mysurveys' in page.url:
         return
-    # The portal may redirect to a department picker, or directly to the survey list.
+
     selector = page.get_by_text(department, exact=True)
-    for _ in range(12):
+
+    for _ in range(120):
+        if '/mysurveys' in page.url:
+            return
         if visible(selector):
             selector.first.click(timeout=6000)
             break
-        if '/mysurveys' in page.url:
-            return
         page.wait_for_timeout(500)
     else:
-        raise RuntimeError(f'Zoho department {department!r} was not available. Sign in to the helper browser.')
-    for _ in range(30):
+        body = page.locator('body').inner_text(
+            timeout=2500
+        ).casefold()
+
+        if any(x in body for x in (
+            'sign in', 'sign-in', 'log in', 'login'
+        )):
+            raise RuntimeError(
+                'Zoho session expired. Refresh the '
+                'ZOHO_STORAGE_STATE_JSON secret.'
+            )
+
+        raise RuntimeError(
+            f'Department {department!r} not found '
+            'within 60 seconds.'
+        )
+
+    for _ in range(120):
         if '/mysurveys' in page.url:
             return
         page.wait_for_timeout(500)
-    raise RuntimeError('Zoho did not open the department survey list.')
+
+    raise RuntimeError(
+        'My Surveys page did not open after selecting '
+        'the department.'
+    )
 
 
 def search_input(page):
