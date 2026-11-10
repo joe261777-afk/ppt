@@ -34,61 +34,58 @@ def survey_id(url):
 
 
 
+
 def open_department(page, department='Impact for L&D'):
-    """Open Zoho department without waiting for every resource."""
-    target = 'https://survey.zoho.com/survey/newui#/home'
+    """Use the existing Zoho page instead of repeating navigation."""
+    from urllib.parse import urlparse
+
+    print('Current Zoho URL:', page.url, flush=True)
     print('Opening Zoho department:', department, flush=True)
 
-    try:
-        page.goto(target, wait_until='commit', timeout=90000)
-    except Exception as exc:
-        if 'survey.zoho.com/survey/newui' not in page.url:
-            raise RuntimeError(
-                f'Zoho navigation failed: {str(exc)[:240]}'
-            ) from exc
-
-    page.locator('body').wait_for(
-        state='visible', timeout=30000
-    )
-
-    if '/mysurveys' in page.url:
-        return
-
-    selector = page.get_by_text(department, exact=True)
-
-    for _ in range(120):
-        if '/mysurveys' in page.url:
-            return
-        if visible(selector):
-            selector.first.click(timeout=6000)
-            break
-        page.wait_for_timeout(500)
-    else:
-        body = page.locator('body').inner_text(
-            timeout=2500
-        ).casefold()
-
-        if any(x in body for x in (
-            'sign in', 'sign-in', 'log in', 'login'
-        )):
-            raise RuntimeError(
-                'Zoho session expired. Refresh the '
-                'ZOHO_STORAGE_STATE_JSON secret.'
-            )
-
+    if urlparse(page.url).hostname != 'survey.zoho.com':
         raise RuntimeError(
-            f'Department {department!r} not found '
-            'within 60 seconds.'
+            'Zoho redirected away from Survey. '
+            'The cloud session may require login.'
         )
 
-    for _ in range(120):
+    # Avoid page.goto() to a second Zoho URL.
+    # Change only the SPA route if the application is already loaded.
+    if '/mysurveys' not in page.url:
+        if '/survey/newui' in page.url:
+            page.evaluate("window.location.hash = '/home'")
+        else:
+            raise RuntimeError(
+                'Zoho homepage loaded, but the Survey '
+                'application is not open. Current URL: ' + page.url
+            )
+
+    for attempt in range(120):
         if '/mysurveys' in page.url:
+            print('My Surveys opened.', flush=True)
+            return
+
+        selector = page.get_by_text(department, exact=True)
+        if visible(selector):
+            print('Department found. Clicking...', flush=True)
+            selector.first.click(timeout=6000)
+            break
+
+        page.wait_for_timeout(500)
+    else:
+        raise RuntimeError(
+            'Zoho department was not visible. '
+            'Current URL: ' + page.url
+        )
+
+    for attempt in range(120):
+        if '/mysurveys' in page.url:
+            print('My Surveys opened successfully.', flush=True)
             return
         page.wait_for_timeout(500)
 
     raise RuntimeError(
-        'My Surveys page did not open after selecting '
-        'the department.'
+        'Department was selected, but My Surveys did not open. '
+        'Current URL: ' + page.url
     )
 
 
